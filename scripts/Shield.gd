@@ -32,3 +32,4 @@ func _update_visuals() -> void:
 		# Modula el color haciéndose más rojizo y transparente al dañarse
 		var ratio: float = float(current_hp) / float(max_hp)
 		sprite.modulate = Color(1.0, 0.4 + (0.6 * ratio), 0.4 + (0.6 * ratio), 0.5 + (0.5 * ratio))
+

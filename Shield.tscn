@@ -1,4 +1,4 @@
-[gd_scene format=3 uid="uid://cshieldscene001"]
+[gd_scene format=3 uid="uid://bu5v70lgj4lme"]
 
 [ext_resource type="Script" path="res://scripts/Shield.gd" id="1_shield"]
 [ext_resource type="Texture2D" path="res://PNG/Sprites/Building/spaceBuilding_001.png" id="2_texture"]
@@ -38,3 +38,4 @@ vertical_alignment = 1
 
 [node name="MultiplayerSynchronizer" type="MultiplayerSynchronizer" parent="."]
 replication_config = SubResource("SceneReplicationConfig_shield")
+
