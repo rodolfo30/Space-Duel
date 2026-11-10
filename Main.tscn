@@ -1,0 +1,237 @@
+[gd_scene format=3 uid="uid://cmainpvp001"]
+
+[ext_resource type="Script" path="res://scripts/Main.gd" id="1_main"]
+[ext_resource type="PackedScene" path="res://Player.tscn" id="2_player"]
+[ext_resource type="PackedScene" path="res://Shield.tscn" id="3_shield"]
+[ext_resource type="Script" path="res://scripts/NetworkSetup.gd" id="4_netsetup"]
+
+[sub_resource type="Curve" id="Curve_stars"]
+_data = [Vector2(0, 0.4), 0.0, 0.0, 0, 0, Vector2(0.5, 1), 0.0, 0.0, 0, 0, Vector2(1, 0.2), 0.0, 0.0, 0, 0]
+point_count = 3
+
+[sub_resource type="Gradient" id="Gradient_stars"]
+offsets = PackedFloat32Array(0, 0.5, 1)
+colors = PackedColorArray(0.8, 0.9, 1, 0, 1, 1, 1, 0.9, 0.7, 0.8, 1, 0)
+
+[node name="Main" type="Node2D"]
+script = ExtResource("1_main")
+player_scene = ExtResource("2_player")
+shield_scene = ExtResource("3_shield")
+
+[node name="Background" type="ColorRect" parent="."]
+offset_right = 1152.0
+offset_bottom = 648.0
+color = Color(0.02, 0.02, 0.05, 1)
+
+[node name="StarParticles" type="CPUParticles2D" parent="."]
+position = Vector2(576, 324)
+amount = 120
+lifetime = 6.0
+preprocess = 3.0
+emission_shape = 3
+emission_rect_extents = Vector2(576, 324)
+gravity = Vector2(0, 0)
+initial_velocity_min = 2.0
+initial_velocity_max = 8.0
+scale_amount_min = 1.0
+scale_amount_max = 2.5
+scale_amount_curve = SubResource("Curve_stars")
+color_ramp = SubResource("Gradient_stars")
+
+[node name="DividerLine" type="Line2D" parent="."]
+points = PackedVector2Array(0, 324, 1152, 324)
+width = 2.0
+default_color = Color(0.3, 0.5, 0.9, 0.45)
+
+[node name="Shields" type="Node2D" parent="."]
+
+[node name="ShieldSpawner" type="MultiplayerSpawner" parent="."]
+_spawnable_scenes = PackedStringArray("res://Shield.tscn")
+spawn_path = NodePath("../Shields")
+
+[node name="Players" type="Node2D" parent="."]
+
+[node name="PlayerSpawner" type="MultiplayerSpawner" parent="."]
+_spawnable_scenes = PackedStringArray("res://Player.tscn")
+spawn_path = NodePath("../Players")
+
+[node name="Bullets" type="Node2D" parent="."]
+
+[node name="BulletSpawner" type="MultiplayerSpawner" parent="."]
+_spawnable_scenes = PackedStringArray("res://Bullet.tscn", "res://HeavyBullet.tscn")
+spawn_path = NodePath("../Bullets")
+
+[node name="CanvasLayer" type="CanvasLayer" parent="."]
+
+[node name="UI" type="Control" parent="CanvasLayer"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="TopHPLabel" type="Label" parent="CanvasLayer/UI"]
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -320.0
+offset_top = 16.0
+offset_right = -24.0
+offset_bottom = 44.0
+grow_horizontal = 0
+theme_override_colors/font_color = Color(1, 0.5, 0.5, 1)
+theme_override_font_sizes/font_size = 18
+text = "Rival (TOP): 3/3 HP"
+horizontal_alignment = 2
+
+[node name="BottomHPLabel" type="Label" parent="CanvasLayer/UI"]
+layout_mode = 1
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -320.0
+offset_top = -44.0
+offset_right = -24.0
+offset_bottom = -16.0
+grow_horizontal = 0
+grow_vertical = 0
+theme_override_colors/font_color = Color(0.5, 0.8, 1, 1)
+theme_override_font_sizes/font_size = 18
+text = "Host (BOTTOM): 3/3 HP"
+horizontal_alignment = 2
+
+[node name="ControlsGuide" type="Label" parent="CanvasLayer/UI"]
+layout_mode = 1
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 24.0
+offset_top = -44.0
+offset_right = 450.0
+offset_bottom = -16.0
+grow_vertical = 0
+theme_override_colors/font_color = Color(0.7, 0.7, 0.7, 0.8)
+theme_override_font_sizes/font_size = 13
+text = "WASD/Flechas: Mover | Click Izq / Espacio: Normal (1 DMG) | Click Der: Pesado (3 DMG)"
+
+[node name="StatusBanner" type="Label" parent="CanvasLayer"]
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -350.0
+offset_top = -60.0
+offset_right = 350.0
+offset_bottom = 60.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_colors/font_color = Color(1, 0.85, 0.2, 1)
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.8)
+theme_override_constants/shadow_offset_x = 2
+theme_override_constants/shadow_offset_y = 2
+theme_override_font_sizes/font_size = 36
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="RestartButton" type="Button" parent="CanvasLayer"]
+visible = false
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -100.0
+offset_top = 80.0
+offset_right = 100.0
+offset_bottom = 126.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_font_sizes/font_size = 18
+text = "Jugar de Nuevo"
+
+[node name="NetworkSetup" type="Control" parent="CanvasLayer"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("4_netsetup")
+
+[node name="ColorRect" type="ColorRect" parent="CanvasLayer/NetworkSetup"]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -220.0
+offset_top = -160.0
+offset_right = 220.0
+offset_bottom = 160.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.08, 0.1, 0.16, 0.96)
+
+[node name="VBoxContainer" type="VBoxContainer" parent="CanvasLayer/NetworkSetup"]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -190.0
+offset_top = -135.0
+offset_right = 190.0
+offset_bottom = 135.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 10
+
+[node name="Title" type="Label" parent="CanvasLayer/NetworkSetup/VBoxContainer"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.3, 0.8, 1, 1)
+theme_override_font_sizes/font_size = 22
+text = "SPACE DUEL (1v1 PvP)"
+horizontal_alignment = 1
+
+[node name="NameLineEdit" type="LineEdit" parent="CanvasLayer/NetworkSetup/VBoxContainer"]
+layout_mode = 2
+placeholder_text = "Ingresa tu nombre..."
+alignment = 1
+
+[node name="HostButton" type="Button" parent="CanvasLayer/NetworkSetup/VBoxContainer"]
+custom_minimum_size = Vector2(0, 36)
+layout_mode = 2
+text = "Crear Sala (Host - Abajo)"
+
+[node name="HBoxContainer" type="HBoxContainer" parent="CanvasLayer/NetworkSetup/VBoxContainer"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="CanvasLayer/NetworkSetup/VBoxContainer/HBoxContainer"]
+layout_mode = 2
+text = "IP:"
+
+[node name="IPLineEdit" type="LineEdit" parent="CanvasLayer/NetworkSetup/VBoxContainer/HBoxContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "127.0.0.1"
+placeholder_text = "IP del Host (ej: 127.0.0.1)"
+
+[node name="JoinButton" type="Button" parent="CanvasLayer/NetworkSetup/VBoxContainer"]
+custom_minimum_size = Vector2(0, 36)
+layout_mode = 2
+text = "Unirse a Sala (Cliente - Arriba)"
+
+[node name="StatusLabel" type="Label" parent="CanvasLayer/NetworkSetup/VBoxContainer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 13
+text = "Ingresa tu nombre y selecciona una opción."
+horizontal_alignment = 1
+autowrap_mode = 2

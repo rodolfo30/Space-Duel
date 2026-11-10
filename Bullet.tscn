@@ -1,0 +1,41 @@
+[gd_scene format=3 uid="uid://cbulletnormal001"]
+
+[ext_resource type="Script" path="res://scripts/Bullet.gd" id="1_bullet"]
+[ext_resource type="Texture2D" path="res://PNG/Sprites/Missiles/spaceMissiles_001.png" id="2_texture"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_normal"]
+size = Vector2(8, 22)
+
+[sub_resource type="SceneReplicationConfig" id="SceneReplicationConfig_bn"]
+properties/0/path = NodePath(".:position")
+properties/0/spawn = true
+properties/0/replication_mode = 1
+properties/1/path = NodePath(".:direction")
+properties/1/spawn = true
+properties/1/replication_mode = 0
+properties/2/path = NodePath(".:damage")
+properties/2/spawn = true
+properties/2/replication_mode = 0
+properties/3/path = NodePath(".:shooter_id")
+properties/3/spawn = true
+properties/3/replication_mode = 0
+
+[node name="Bullet" type="Area2D"]
+collision_layer = 3
+collision_mask = 3
+script = ExtResource("1_bullet")
+speed = 650.0
+damage = 1
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+scale = Vector2(0.55, 0.55)
+texture = ExtResource("2_texture")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("RectangleShape2D_normal")
+
+[node name="VisibleOnScreenNotifier2D" type="VisibleOnScreenNotifier2D" parent="."]
+scale = Vector2(0.5, 1.2)
+
+[node name="MultiplayerSynchronizer" type="MultiplayerSynchronizer" parent="."]
+replication_config = SubResource("SceneReplicationConfig_bn")

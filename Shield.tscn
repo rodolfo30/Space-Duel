@@ -1,0 +1,40 @@
+[gd_scene format=3 uid="uid://cshieldscene001"]
+
+[ext_resource type="Script" path="res://scripts/Shield.gd" id="1_shield"]
+[ext_resource type="Texture2D" path="res://PNG/Sprites/Building/spaceBuilding_001.png" id="2_texture"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_shield"]
+size = Vector2(56, 36)
+
+[sub_resource type="SceneReplicationConfig" id="SceneReplicationConfig_shield"]
+properties/0/path = NodePath(".:position")
+properties/0/spawn = true
+properties/0/replication_mode = 0
+properties/1/path = NodePath(".:current_hp")
+properties/1/spawn = true
+properties/1/replication_mode = 1
+
+[node name="Shield" type="Area2D"]
+collision_layer = 3
+collision_mask = 3
+script = ExtResource("1_shield")
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+scale = Vector2(0.8, 0.6)
+texture = ExtResource("2_texture")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("RectangleShape2D_shield")
+
+[node name="HPLabel" type="Label" parent="."]
+offset_left = -20.0
+offset_top = -12.0
+offset_right = 20.0
+offset_bottom = 12.0
+theme_override_font_sizes/font_size = 14
+text = "5"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="MultiplayerSynchronizer" type="MultiplayerSynchronizer" parent="."]
+replication_config = SubResource("SceneReplicationConfig_shield")
