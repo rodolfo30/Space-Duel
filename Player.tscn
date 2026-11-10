@@ -14,16 +14,22 @@ properties/0/spawn = true
 properties/0/replication_mode = 1
 properties/1/path = NodePath(".:player_id")
 properties/1/spawn = true
-properties/1/replication_mode = 2
+properties/1/replication_mode = 0
 properties/2/path = NodePath(".:player_name")
 properties/2/spawn = true
-properties/2/replication_mode = 2
+properties/2/replication_mode = 0
 properties/3/path = NodePath(".:current_hp")
 properties/3/spawn = true
 properties/3/replication_mode = 1
 properties/4/path = NodePath(".:can_move")
 properties/4/spawn = true
 properties/4/replication_mode = 1
+properties/5/path = NodePath(".:is_top_player")
+properties/5/spawn = true
+properties/5/replication_mode = 0
+properties/6/path = NodePath(".:rotation_degrees")
+properties/6/spawn = true
+properties/6/replication_mode = 0
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_bg"]
 bg_color = Color(0.2, 0.2, 0.2, 0.8)

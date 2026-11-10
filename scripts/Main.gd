@@ -11,7 +11,6 @@ extends Node2D
 @onready var top_hp_label: Label = $CanvasLayer/UI/TopHPLabel
 @onready var bottom_hp_label: Label = $CanvasLayer/UI/BottomHPLabel
 
-var players_info: Dictionary = {} # id -> {"name": String, "node": Player}
 var is_battle_active: bool = false
 var host_name: String = "Host"
 var client_name: String = "Rival"
@@ -35,7 +34,6 @@ func _on_network_game_started(player_name: String, is_host: bool) -> void:
 		status_banner.text = "ESPERANDO A QUE SE UNA EL JUGADOR 2..."
 	else:
 		client_name = player_name
-		# Notificar al servidor el nombre del cliente
 		register_client_name.rpc_id(1, client_name)
 
 @rpc("any_peer", "call_local", "reliable")
@@ -44,29 +42,26 @@ func register_client_name(c_name: String) -> void:
 		client_name = c_name
 		_start_match_sequence()
 
-func _on_peer_connected(id: int) -> void:
+func _on_peer_connected(_id: int) -> void:
 	if multiplayer.is_server():
 		status_banner.text = "¡JUGADOR 2 CONECTADO!"
 
-func _on_peer_disconnected(id: int) -> void:
+func _on_peer_disconnected(_id: int) -> void:
 	if status_banner:
 		status_banner.text = "EL RIVAL SE HA DESCONECTADO"
 	if restart_button:
 		restart_button.visible = true
 
 func _start_match_sequence() -> void:
-	# Solo el servidor ejecuta la lógica de inicio
 	if not multiplayer.is_server():
 		return
 		
-	# Limpiar contenedores
 	for c in players_container.get_children():
 		c.queue_free()
 	for s in shields_container.get_children():
 		s.queue_free()
 		
-	# 1. Instanciar Escudos en el centro (Y = 324)
-	# 3 coberturas distribuidas horizontalmente
+	# 1. Instanciar Escudos
 	var shield_positions: Array[Vector2] = [
 		Vector2(288.0, 324.0),
 		Vector2(576.0, 324.0),
@@ -81,13 +76,13 @@ func _start_match_sequence() -> void:
 	var p1: CharacterBody2D = player_scene.instantiate() as CharacterBody2D
 	p1.name = "1"
 	p1.position = Vector2(576.0, 560.0)
+	p1.set("player_id", 1)
 	p1.set("is_top_player", false)
 	p1.set("player_name", host_name)
 	p1.set("can_move", false)
 	p1.connect("died", _on_player_died)
 	p1.connect("hp_changed", _on_player_hp_changed)
 	players_container.add_child(p1, true)
-	p1.set("player_id", 1)
 	
 	# 3. Instanciar Jugador 2 (Cliente - Arriba)
 	var peer_ids: PackedInt32Array = multiplayer.get_peers()
@@ -95,15 +90,18 @@ func _start_match_sequence() -> void:
 	var p2: CharacterBody2D = player_scene.instantiate() as CharacterBody2D
 	p2.name = str(client_id)
 	p2.position = Vector2(576.0, 88.0)
+	p2.set("player_id", client_id)
 	p2.set("is_top_player", true)
 	p2.set("player_name", client_name)
 	p2.set("can_move", false)
 	p2.connect("died", _on_player_died)
 	p2.connect("hp_changed", _on_player_hp_changed)
 	players_container.add_child(p2, true)
-	p2.set("player_id", client_id)
 	
-	# 4. Sincronizar nombres e iniciar cuenta regresiva
+	# Asegurar asignación explícita de autoridad tras añadir al árbol
+	p1.call("_apply_authority_setup")
+	p2.call("_apply_authority_setup")
+	
 	sync_player_names.rpc(host_name, client_name)
 	_run_countdown.call_deferred()
 
@@ -128,20 +126,24 @@ func _run_countdown() -> void:
 	await get_tree().create_timer(1.0).timeout
 	set_countdown_text.rpc("¡FIGHT!")
 	
-	# Habilitar movimiento
-	for p in players_container.get_children():
-		p.set("can_move", true)
+	# Activar can_move de forma sincronizada
+	set_players_can_move.rpc(true)
 	is_battle_active = true
 	
 	await get_tree().create_timer(1.0).timeout
 	set_countdown_text.rpc("")
 
 @rpc("call_local", "reliable")
+func set_players_can_move(val: bool) -> void:
+	for p in players_container.get_children():
+		p.set("can_move", val)
+
+@rpc("call_local", "reliable")
 func set_countdown_text(txt: String) -> void:
 	if status_banner:
 		status_banner.text = txt
 
-func _on_player_hp_changed(p_id: int, new_hp: int) -> void:
+func _on_player_hp_changed(_p_id: int, _new_hp: int) -> void:
 	if multiplayer.is_server():
 		sync_match_ui.rpc()
 
@@ -160,8 +162,6 @@ func _on_player_died(dead_id: int) -> void:
 	if not multiplayer.is_server() or not is_battle_active:
 		return
 	is_battle_active = false
-	
-	# Determinar ganador
 	var winner_name: String = host_name if dead_id != 1 else client_name
 	end_battle.rpc(winner_name)
 
@@ -172,10 +172,7 @@ func end_battle(winner_name: String) -> void:
 		status_banner.text = "¡HA GANADO %s!" % winner_name.to_upper()
 	if restart_button:
 		restart_button.visible = true
-	
-	# Congelar naves
-	for p in players_container.get_children():
-		p.set("can_move", false)
+	set_players_can_move(false)
 
 func _on_restart_pressed() -> void:
 	if multiplayer.has_multiplayer_peer():

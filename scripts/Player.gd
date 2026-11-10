@@ -13,6 +13,8 @@ signal died(player_id: int)
 	set(value):
 		player_id = value
 		set_multiplayer_authority(value)
+		if is_inside_tree():
+			_apply_authority_setup()
 
 @export var player_name: String = "Player":
 	set(value):
@@ -22,40 +24,54 @@ signal died(player_id: int)
 
 @export var max_hp: int = 3
 @export var current_hp: int = 3
+@export var is_top_player: bool = false:
+	set(value):
+		is_top_player = value
+		if is_inside_tree():
+			_apply_orientation()
 
-var is_top_player: bool = false
+@export var can_move: bool = false # Controlado por el servidor / cuenta atrás
+
 var can_shoot_normal: bool = true
 var can_shoot_heavy: bool = true
-var can_move: bool = false # Controlado por la cuenta regresiva
 
 @onready var sprite: Sprite2D = $Sprite2D
 @onready var muzzle: Marker2D = $Muzzle
 @onready var hp_bar: ProgressBar = $HUD/HPBar
 @onready var name_label: Label = $HUD/NameLabel
+@onready var synchronizer: MultiplayerSynchronizer = $MultiplayerSynchronizer
 
 func _ready() -> void:
 	add_to_group("player")
 	if name.is_valid_int():
 		player_id = name.to_int()
-	set_multiplayer_authority(player_id)
 	
-	current_hp = max_hp
+	_apply_authority_setup()
+	_apply_orientation()
 	_update_hud()
-	
-	# Si es el jugador de arriba (Jugador 2/Cliente), rotar 180°
+
+func _apply_authority_setup() -> void:
+	set_multiplayer_authority(player_id)
+	if synchronizer:
+		# La autoridad del sincronizador debe ser quien mueve la nave para replicar su posición
+		synchronizer.set_multiplayer_authority(player_id)
+
+func _apply_orientation() -> void:
 	if is_top_player or player_id != 1:
-		is_top_player = true
 		rotation_degrees = 180.0
-		# Mantener el HUD orientado correctamente
 		if has_node("HUD"):
 			$HUD.rotation_degrees = 180.0
 		if sprite:
-			sprite.modulate = Color(1.0, 0.45, 0.45) # Tinte rojo/naranja
+			sprite.modulate = Color(1.0, 0.45, 0.45) # Tinte rojo
 	else:
+		rotation_degrees = 0.0
+		if has_node("HUD"):
+			$HUD.rotation_degrees = 0.0
 		if sprite:
 			sprite.modulate = Color(0.45, 0.75, 1.0) # Tinte azul
 
 func _process(delta: float) -> void:
+	# Únicamente el dueño de este jugador lee teclado y ratón
 	if not is_multiplayer_authority():
 		return
 		
@@ -74,7 +90,7 @@ func _handle_movement(_delta: float) -> void:
 	if Input.is_action_pressed("ui_down") or Input.is_key_pressed(KEY_S) or Input.is_key_pressed(KEY_DOWN):
 		input_vec.y += 1.0
 		
-	# Invertir controles para el jugador de arriba para que sea intuitivo
+	# Invertir controles para el jugador de arriba para que sea intuitivo desde su vista
 	if is_top_player:
 		input_vec.x = -input_vec.x
 		input_vec.y = -input_vec.y
@@ -82,7 +98,7 @@ func _handle_movement(_delta: float) -> void:
 	velocity = input_vec.normalized() * speed
 	move_and_slide()
 	
-	# Delimitar estrictamente a su mitad de pantalla
+	# Delimitar dentro de su propia mitad de pantalla
 	# Viewport: 1152 x 648 -> Línea divisoria central Y: 324
 	var vp: Rect2 = get_viewport_rect()
 	var margin_x: float = 32.0
@@ -90,11 +106,9 @@ func _handle_movement(_delta: float) -> void:
 	var max_y: float = 0.0
 	
 	if is_top_player:
-		# Mitad superior
 		min_y = 35.0
 		max_y = 300.0
 	else:
-		# Mitad inferior
 		min_y = 348.0
 		max_y = vp.size.y - 35.0
 		
