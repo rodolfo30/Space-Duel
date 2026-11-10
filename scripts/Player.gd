@@ -30,13 +30,14 @@ signal died(player_id: int)
 		if is_inside_tree():
 			_apply_orientation()
 
-@export var can_move: bool = false # Controlado por el servidor / cuenta atrás
+@export var can_move: bool = false # Controlado por la cuenta regresiva
 
 var can_shoot_normal: bool = true
 var can_shoot_heavy: bool = true
 
 @onready var sprite: Sprite2D = $Sprite2D
 @onready var muzzle: Marker2D = $Muzzle
+@onready var hud: Node2D = $HUD
 @onready var hp_bar: ProgressBar = $HUD/HPBar
 @onready var name_label: Label = $HUD/NameLabel
 @onready var synchronizer: MultiplayerSynchronizer = $MultiplayerSynchronizer
@@ -53,49 +54,55 @@ func _ready() -> void:
 func _apply_authority_setup() -> void:
 	set_multiplayer_authority(player_id)
 	if synchronizer:
-		# La autoridad del sincronizador debe ser quien mueve la nave para replicar su posición
 		synchronizer.set_multiplayer_authority(player_id)
 
 func _apply_orientation() -> void:
-	if is_top_player or player_id != 1:
-		rotation_degrees = 180.0
-		if has_node("HUD"):
-			$HUD.rotation_degrees = 180.0
-		if sprite:
-			sprite.modulate = Color(1.0, 0.45, 0.45) # Tinte rojo
-	else:
-		rotation_degrees = 0.0
-		if has_node("HUD"):
-			$HUD.rotation_degrees = 0.0
-		if sprite:
+	if sprite:
+		if is_top_player:
+			sprite.modulate = Color(1.0, 0.45, 0.45) # Tinte rojo/naranja
+		else:
 			sprite.modulate = Color(0.45, 0.75, 1.0) # Tinte azul
 
 func _process(delta: float) -> void:
-	# Únicamente el dueño de este jugador lee teclado y ratón
+	# Mantener el HUD flotante sobre la nave (sin rotar)
+	if hud:
+		hud.global_position = global_position
+		hud.rotation = 0.0
+
+	# Únicamente el dueño de esta nave lee teclado y ratón
 	if not is_multiplayer_authority():
 		return
 		
 	if can_move:
-		_handle_movement(delta)
+		_handle_aim_and_movement(delta)
 		_handle_shooting()
 
-func _handle_movement(_delta: float) -> void:
-	var input_vec: Vector2 = Vector2.ZERO
-	if Input.is_action_pressed("ui_left") or Input.is_key_pressed(KEY_A) or Input.is_key_pressed(KEY_LEFT):
-		input_vec.x -= 1.0
-	if Input.is_action_pressed("ui_right") or Input.is_key_pressed(KEY_D) or Input.is_key_pressed(KEY_RIGHT):
-		input_vec.x += 1.0
-	if Input.is_action_pressed("ui_up") or Input.is_key_pressed(KEY_W) or Input.is_key_pressed(KEY_UP):
-		input_vec.y -= 1.0
-	if Input.is_action_pressed("ui_down") or Input.is_key_pressed(KEY_S) or Input.is_key_pressed(KEY_DOWN):
-		input_vec.y += 1.0
-		
-	# Invertir controles para el jugador de arriba para que sea intuitivo desde su vista
-	if is_top_player:
-		input_vec.x = -input_vec.x
-		input_vec.y = -input_vec.y
+func _handle_aim_and_movement(_delta: float) -> void:
+	var mouse_pos: Vector2 = get_global_mouse_position()
+	var to_mouse: Vector2 = mouse_pos - global_position
+	
+	# Apuntar la nave hacia el ratón (la nave mira hacia -Y por defecto, por lo que sumamos PI/2)
+	var aim_dir: Vector2 = Vector2.UP
+	if to_mouse.length_squared() > 10.0:
+		aim_dir = to_mouse.normalized()
+		rotation = aim_dir.angle() + (PI * 0.5)
 
-	velocity = input_vec.normalized() * speed
+	# Ejes relativos al apuntado
+	var forward: Vector2 = aim_dir
+	var right: Vector2 = Vector2(-forward.y, forward.x)
+
+	# Movimiento con W, S, A, D relativo a la dirección del ratón
+	var move_vec: Vector2 = Vector2.ZERO
+	if Input.is_key_pressed(KEY_W) or Input.is_action_pressed("ui_up"):
+		move_vec += forward
+	if Input.is_key_pressed(KEY_S) or Input.is_action_pressed("ui_down"):
+		move_vec -= forward
+	if Input.is_key_pressed(KEY_D) or Input.is_action_pressed("ui_right"):
+		move_vec += right
+	if Input.is_key_pressed(KEY_A) or Input.is_action_pressed("ui_left"):
+		move_vec -= right
+
+	velocity = move_vec.normalized() * speed
 	move_and_slide()
 	
 	# Delimitar dentro de su propia mitad de pantalla
@@ -106,9 +113,11 @@ func _handle_movement(_delta: float) -> void:
 	var max_y: float = 0.0
 	
 	if is_top_player:
+		# Mitad superior
 		min_y = 35.0
 		max_y = 300.0
 	else:
+		# Mitad inferior
 		min_y = 348.0
 		max_y = vp.size.y - 35.0
 		
@@ -116,8 +125,13 @@ func _handle_movement(_delta: float) -> void:
 	global_position.y = clamp(global_position.y, min_y, max_y)
 
 func _handle_shooting() -> void:
-	var shoot_dir: Vector2 = Vector2.DOWN if is_top_player else Vector2.UP
-	var m_pos: Vector2 = muzzle.global_position if muzzle else (global_position + shoot_dir * 30.0)
+	# El vector de disparo va hacia el ratón
+	var mouse_pos: Vector2 = get_global_mouse_position()
+	var shoot_dir: Vector2 = (mouse_pos - global_position).normalized()
+	if shoot_dir.length_squared() < 0.1:
+		shoot_dir = Vector2.DOWN if is_top_player else Vector2.UP
+
+	var m_pos: Vector2 = muzzle.global_position if muzzle else (global_position + shoot_dir * 32.0)
 
 	# Click Izquierdo o Barra espaciadora: Disparo Normal
 	if (Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT) or Input.is_action_just_pressed("ui_accept")) and can_shoot_normal:

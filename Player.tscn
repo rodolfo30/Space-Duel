@@ -27,9 +27,9 @@ properties/4/replication_mode = 1
 properties/5/path = NodePath(".:is_top_player")
 properties/5/spawn = true
 properties/5/replication_mode = 0
-properties/6/path = NodePath(".:rotation_degrees")
+properties/6/path = NodePath(".:rotation")
 properties/6/spawn = true
-properties/6/replication_mode = 0
+properties/6/replication_mode = 1
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_bg"]
 bg_color = Color(0.2, 0.2, 0.2, 0.8)
@@ -64,13 +64,13 @@ shape = SubResource("RectangleShape2D_p1")
 position = Vector2(0, -28)
 
 [node name="HUD" type="Node2D" parent="."]
-position = Vector2(0, 32)
+top_level = true
 
 [node name="HPBar" type="ProgressBar" parent="HUD"]
 offset_left = -30.0
-offset_top = 4.0
+offset_top = 28.0
 offset_right = 30.0
-offset_bottom = 12.0
+offset_bottom = 36.0
 theme_override_styles/background = SubResource("StyleBoxFlat_bg")
 theme_override_styles/fill = SubResource("StyleBoxFlat_fill")
 max_value = 3.0
@@ -80,9 +80,9 @@ show_percentage = false
 
 [node name="NameLabel" type="Label" parent="HUD"]
 offset_left = -60.0
-offset_top = -14.0
+offset_top = 10.0
 offset_right = 60.0
-offset_bottom = 4.0
+offset_bottom = 28.0
 theme_override_font_sizes/font_size = 12
 text = "Player"
 horizontal_alignment = 1

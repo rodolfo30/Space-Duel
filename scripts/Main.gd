@@ -5,6 +5,7 @@ extends Node2D
 
 @onready var players_container: Node2D = $Players
 @onready var shields_container: Node2D = $Shields
+@onready var bullets_container: Node2D = $Bullets
 @onready var network_setup: Control = $CanvasLayer/NetworkSetup
 @onready var status_banner: Label = $CanvasLayer/StatusBanner
 @onready var restart_button: Button = $CanvasLayer/RestartButton
@@ -56,12 +57,13 @@ func _start_match_sequence() -> void:
 	if not multiplayer.is_server():
 		return
 		
-	for c in players_container.get_children():
-		c.queue_free()
+	# 1. Limpiar proyectiles residuales en ambos peers
+	clear_all_bullets.rpc()
+
+	# 2. Re-instanciar o re-posicionar Escudos
 	for s in shields_container.get_children():
 		s.queue_free()
 		
-	# 1. Instanciar Escudos
 	var shield_positions: Array[Vector2] = [
 		Vector2(288.0, 324.0),
 		Vector2(576.0, 324.0),
@@ -72,10 +74,18 @@ func _start_match_sequence() -> void:
 		sh.position = pos
 		shields_container.add_child(sh, true)
 		
-	# 2. Instanciar Jugador 1 (Host - Abajo)
+	# 3. Limpiar jugadores anteriores si existen
+	for c in players_container.get_children():
+		c.queue_free()
+		
+	# Esperar un cuadro para que se complete el queue_free en el árbol
+	await get_tree().process_frame
+
+	# 4. Instanciar Jugador 1 (Host - Abajo)
 	var p1: CharacterBody2D = player_scene.instantiate() as CharacterBody2D
 	p1.name = "1"
 	p1.position = Vector2(576.0, 560.0)
+	p1.rotation = 0.0 # Mirando hacia arriba
 	p1.set("player_id", 1)
 	p1.set("is_top_player", false)
 	p1.set("player_name", host_name)
@@ -84,12 +94,13 @@ func _start_match_sequence() -> void:
 	p1.connect("hp_changed", _on_player_hp_changed)
 	players_container.add_child(p1, true)
 	
-	# 3. Instanciar Jugador 2 (Cliente - Arriba)
+	# 5. Instanciar Jugador 2 (Cliente - Arriba)
 	var peer_ids: PackedInt32Array = multiplayer.get_peers()
 	var client_id: int = peer_ids[0] if peer_ids.size() > 0 else 2
 	var p2: CharacterBody2D = player_scene.instantiate() as CharacterBody2D
 	p2.name = str(client_id)
 	p2.position = Vector2(576.0, 88.0)
+	p2.rotation = PI # Mirando hacia abajo
 	p2.set("player_id", client_id)
 	p2.set("is_top_player", true)
 	p2.set("player_name", client_name)
@@ -98,12 +109,17 @@ func _start_match_sequence() -> void:
 	p2.connect("hp_changed", _on_player_hp_changed)
 	players_container.add_child(p2, true)
 	
-	# Asegurar asignación explícita de autoridad tras añadir al árbol
 	p1.call("_apply_authority_setup")
 	p2.call("_apply_authority_setup")
 	
 	sync_player_names.rpc(host_name, client_name)
 	_run_countdown.call_deferred()
+
+@rpc("call_local", "reliable")
+func clear_all_bullets() -> void:
+	if bullets_container:
+		for b in bullets_container.get_children():
+			b.queue_free()
 
 @rpc("call_local", "reliable")
 func sync_player_names(h_name: String, c_name: String) -> void:
@@ -126,7 +142,6 @@ func _run_countdown() -> void:
 	await get_tree().create_timer(1.0).timeout
 	set_countdown_text.rpc("¡FIGHT!")
 	
-	# Activar can_move de forma sincronizada
 	set_players_can_move.rpc(true)
 	is_battle_active = true
 	
@@ -176,9 +191,14 @@ func end_battle(winner_name: String) -> void:
 
 func _on_restart_pressed() -> void:
 	if multiplayer.has_multiplayer_peer():
-		restart_match_rpc.rpc()
+		request_restart_server.rpc_id(1)
 	else:
 		get_tree().reload_current_scene()
+
+@rpc("any_peer", "call_local", "reliable")
+func request_restart_server() -> void:
+	if multiplayer.is_server():
+		restart_match_rpc.rpc()
 
 @rpc("call_local", "reliable")
 func restart_match_rpc() -> void:
